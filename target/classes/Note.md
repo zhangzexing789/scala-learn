@@ -1090,14 +1090,14 @@ object Test09_MutableMap {
 
     println("====================")
 
-    // 5. 合并两个Map, 存在key 即修改对应value
+    // 5. 合并两个Map, 存在key 即修改对应value，存在覆盖
     val map2: Map[String, Int] = Map("aaa" -> 11, "b" -> 29, "hello" -> 5)
 //    map1 ++= map2
     println(map1)//Map(e -> 10, b -> 25, a -> 13, c -> 5, hello -> 3)
     println(map2)//Map(aaa -> 11, b -> 29, hello -> 5)
 
     println("---------------------------")
-    val map3: Map[String, Int] = map2 ++ map1
+    val map3: Map[String, Int] = map2 ++ map1 // map1将覆盖map2
     println(map1)
     println(map2)
     println(map3)//Map(e -> 10, a -> 13, b -> 25, c -> 5, hello -> 3, aaa -> 11)
@@ -1268,5 +1268,179 @@ object Test12_DerivedCollection {
   }
 }
 ```
+#### 集合计算函数
+```scala
+object Test13_SimpleFunction {
+  def main(args: Array[String]): Unit = {
+    val list = List(5,1,8,2,-3,4)
+    val list2 = List(("a", 5), ("b", 1), ("c", 8), ("d", 2), ("e", -3), ("f", 4))
+
+    //    （1）求和
+    var sum = 0
+    for (elem <- list){
+      sum += elem
+    }
+    println(sum)
+    // 直接求和
+    println(list.sum)
+
+    //    （2）求乘积
+    println(list.product)
+
+    //    （3）最大值
+    println(list.max)
+    println(list2.maxBy( (tuple: (String, Int)) => tuple._2 ))//对复杂集合指定比较的值，默认比较第一个值。
+    println(list2.maxBy( _._2 ))
+
+    //    （4）最小值
+    println(list.min)
+    println(list2.minBy(_._2))//(e,-3)
+
+    println("========================")
+
+    //    （5）排序
+    // 5.1 sorted
+    val sortedList = list.sorted// 默认从小到大排序
+    println(sortedList)
+
+    // 从大到小逆序排序
+    println(list.sorted.reverse)
+    // 传入隐式参数，修改排序规则实现逆序
+    println(list.sorted(Ordering[Int].reverse))
+
+    println(list2.sorted)//默认以第一个值排序
+
+    // 5.2 sortBy
+    // 复杂集合指定排序的值
+    println(list2.sortBy(_._2))
+    println(list2.sortBy(_._2)(Ordering[Int].reverse))
+
+    // 5.3 sortWith
+    // 基于函数的排序，通过一个comparator 函数，实现自定义排序的逻辑。
+    // 指定排序的规则，相当于java 的compare
+    println(list.sortWith( (a: Int, b: Int) => {a < b} ))//List(-3, 1, 2, 4, 5, 8)
+    println(list.sortWith( _ < _ ))//List(-3, 1, 2, 4, 5, 8)
+    println(list.sortWith( _ > _))//List(8, 5, 4, 2, 1, -3)
+  }
+}
+```
+#### 转化映射map
+```scala
+object Test14_HighLevelFunction_Map {
+  def main(args: Array[String]): Unit = {
+    val list = List(1,2,3,4,5,6,7,8,9)
+
+    // 1. 过滤
+    // 选取偶数
+    val evenList = list.filter( (elem: Int) => {elem % 2 == 0} )
+    println(evenList)
+
+    // 选取奇数
+    println(list.filter( _ % 2 == 1 ))
+
+    println("=======================")
+
+    // 2. 转化映射map: 将集合中的每一个元素映射到某一个函数
+    // 把集合中每个数乘2
+    println(list.map(_ * 2))
+    println(list.map( x => x * x))
+
+    println("=======================")
+
+    // 3. 扁平化
+    val nestedList: List[List[Int]] = List(List(1,2,3),List(4,5),List(6,7,8,9))
+
+    val flatList = nestedList(0) ::: nestedList(1) ::: nestedList(2)
+    println(flatList)
+
+    val flatList2 = nestedList.flatten
+    println(flatList2)
+
+    println("=======================")
+
+    // 4. 扁平映射
+    // 将一组字符串进行分词，并保存成单词的列表
+    val strings: List[String] = List("hello world", "hello scala", "hello java", "we study")
+    val splitList: List[Array[String]] = strings.map( _.split(" ") )    // 分词
+    val flattenList = splitList.flatten    // 打散扁平化
+    println(flattenList)
+    
+    // 扁平化+映射: flatMap 相当于先进行map 操作，在进行 flatten 操作集合中的每个元素的子元素映射到某个函数并返回新集合
+    val flatmapList = strings.flatMap(_.split(" "))
+    println(flatmapList)
+
+    println("========================")
+
+    // 5. 分组groupBy：按照指定的规则对集合的元素进行分组
+    // 分成奇偶两组
+    val groupMap: Map[Int, List[Int]] = list.groupBy( _ % 2)
+    val groupMap2: Map[String, List[Int]] = list.groupBy( data => if (data % 2 == 0) "偶数" else "奇数")
+
+    println(groupMap)
+    println(groupMap2)
+
+    // 给定一组词汇，按照单词的首字母进行分组
+    val wordList = List("china", "america", "alice", "canada", "cary", "bob", "japan")
+    println( wordList.groupBy( _.charAt(0) ) )
+  }
+}
+```
+
+#### 简化（归约）reduce
+- Reduce简化（归约） ：通过指定的逻辑将集合中的数据进行聚合，从而减少数据，最终获取结果。
+```scala
+object Test15_HighLevelFunction_Reduce {
+  def main(args: Array[String]): Unit = {
+    val list = List(1,2,3,4)
+
+    // 1. reduce
+    println(list.reduce( _ + _ ))
+    println(list.reduceLeft(_ + _))
+    println(list.reduceRight(_ + _))
+
+    println("===========================")
+
+    val list2 = List(3,4,5,8,10)
+    println(list2.reduce(_ - _))    // -24
+    println(list2.reduceLeft(_ - _))
+    //reduceRight 底层是递归函数
+    println(list2.reduceRight(_ - _))    // 3 - (4 - (5 - (8 - 10))), 6
+    println("===========================")
+    // 2. fold：使用了函数柯里化，存在两个参数列表
+    // 第一个参数列表为 零值（初始值）
+    // 第二个参数列表为： 简化规则
+    // fold 底层其实为 foldLeft
+    println(list.fold(10)(_ + _))     // 10 + 1 + 2 + 3 + 4
+    println(list.foldLeft(10)(_ - _))    // 10 - 1 - 2 - 3 - 4
+    println(list2.foldRight(11)(_ - _))    // 3 - (4 - (5 - (8 - (10 - 11)))),  -5
+  }
+}
+```
+#### Map 合并
+- 上边 `map1+map2` 的并不是真正的合并，相同的key 会出现value 覆盖的结果 
+- 但这是这在大数据的分布式处理中，应该是相同key 的处理结果进行相加合并
+
+```scala
+import scala.collection.mutable
+
+object Test16_MergeMap {
+  def main(args: Array[String]): Unit = {
+    val map1 = Map("a" -> 1, "b" -> 3, "c" -> 6)
+    val map2 = mutable.Map("a" -> 6, "b" -> 2, "c" -> 9, "d" -> 3) // 可变map进行更新
+//    println(map1 ++ map2)
+    val map3 = map1.foldLeft(map2)(
+      (mergedMap, kv) => {
+        val key = kv._1
+        val value = kv._2
+        mergedMap(key) = mergedMap.getOrElse(key, 0) + value
+        mergedMap
+      }
+    )
+
+    println(map3)
+  }
+}
+```
+
 
 

@@ -1440,6 +1440,107 @@ object Test16_MergeMap {
   }
 }
 ```
+#### 普通worldCount
+```scala
+object Test17_CommonWordCount {
+  def main(args: Array[String]): Unit = {
+    val stringList: List[String] = List(
+      "hello",
+      "hello world",
+      "hello scala",
+      "hello spark from scala",
+      "hello flink from scala"
+    )
+
+    // 1. 对字符串进行切分，得到一个打散所有单词的列表
+//    val wordList1: List[Array[String]] = stringList.map(_.split(" "))
+//    val wordList2: List[String] = wordList1.flatten
+//    println(wordList2)
+    val wordList = stringList.flatMap(_.split(" "))
+    println(wordList)//List(hello, hello, world, hello, scala, hello, spark, from, scala, hello, flink, from, scala)
+
+    // 2. 相同的单词进行分组
+    val groupMap: Map[String, List[String]] = wordList.groupBy(word => word)
+    println(groupMap)//Map(world -> List(world), flink -> List(flink), spark -> List(spark), scala -> List(scala, scala, scala), from -> List(from, from), hello -> List(hello, hello, hello, hello, hello))
+
+    // 3. 对分组之后的list取长度，得到每个单词的个数
+    val countMap: Map[String, Int] = groupMap.map(kv => (kv._1, kv._2.length))
+    println(countMap)//Map(world -> 1, flink -> 1, spark -> 1, scala -> 3, from -> 2, hello -> 5)
+
+    // 4. 将map转换为list，并排序取前3
+    println(countMap.toList)//List((world,1), (flink,1), (spark,1), (scala,3), (from,2), (hello,5))
+    val sortList: List[(String, Int)] = countMap.toList
+      .sortWith( _._2 > _._2 )
+      .take(3)
+
+    println(sortList)//List((hello,5), (scala,3), (from,2))
+  }
+}
+```
+#### 复杂WordCount
+```scala
+object Test18_ComplexWordCount {
+  def main(args: Array[String]): Unit = {
+    val tupleList: List[(String, Int)] = List(
+      ("hello", 1),
+      ("hello world", 2),
+      ("hello scala", 3),
+      ("hello spark from scala", 1),
+      ("hello flink from scala", 2)
+    )
+
+    // 思路一：直接展开为普通版本
+    val newStringList: List[String] = tupleList.map(
+      kv => {
+        (kv._1.trim + " ") * kv._2
+      }
+    )
+    println(newStringList) //List(hello , hello world hello world , hello scala hello scala hello scala , hello spark from scala , hello flink from scala hello flink from scala )
+
+    // 接下来操作与普通版本完全一致
+    val wordCountList: List[(String, Int)] = newStringList
+            .flatMap(_.split(" ")) // 空格分词
+            .groupBy(word => word) // 按照单词分组
+            .map(kv => (kv._1, kv._2.size)) // 统计出每个单词的个数
+            .toList
+            .sortBy(_._2)(Ordering[Int].reverse)
+            .take(3)
+
+    println(wordCountList) //List((hello,9), (scala,6), (from,3))
+
+    println("================================")
+
+    // 思路二：直接基于预统计的结果进行转换
+    // 1. 将字符串打散为单词，并结合对应的个数包装成二元组
+    val preCountList: List[(String, Int)] = tupleList.flatMap(
+      tuple => {
+        val strings: Array[String] = tuple._1.split(" ")
+        strings.map(word => (word, tuple._2))
+      }
+    )
+    println(preCountList) //List((hello,1), (hello,2), (world,2), (hello,3), (scala,3), (hello,1), (spark,1), (from,1), (scala,1), (hello,2), (flink,2), (from,2), (scala,2))
+
+    // 2. 对二元组按照单词进行分组
+    //    val preCountMap: Map[String, List[(String, Int)]] = preCountList.groupBy( tuple=>tuple._1 )
+    val preCountMap: Map[String, List[(String, Int)]] = preCountList.groupBy(_._1)
+    println(preCountMap)
+    //Map(world -> List((world,2)), flink -> List((flink,2)), spark -> List((spark,1)), scala -> List((scala,3), (scala,1), (scala,2)), from -> List((from,1), (from,2)), hello -> List((hello,1), (hello,2), (hello,3), (hello,1), (hello,2)))
+
+    // 3. 叠加每个单词预统计的个数值
+    val countMap: Map[String, Int] = preCountMap.mapValues(
+      tupleList => tupleList.map(_._2).sum
+    )
+    println(countMap) //Map(world -> 2, flink -> 2, spark -> 1, scala -> 6, from -> 3, hello -> 9)
+
+    // 4. 转换成list，排序取前3
+    val countList = countMap.toList
+            .sortWith(_._2 > _._2)
+            .take(3)
+    println(countList) //List((hello,9), (scala,6), (from,3))
+  }
+}
+```
+
 
 
 
